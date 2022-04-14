@@ -87,7 +87,7 @@ to go
   ask turtles with [ infected? ]
     [ spread-disease ]
   set num-sick count turtles with [ infected? ]
-  set num-healthy count turtles with [ not infected?]
+  set num-healthy count turtles with  [infected?]
   tick
 end
 
