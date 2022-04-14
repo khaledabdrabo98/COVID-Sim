@@ -11,6 +11,8 @@ globals
   ;; when multiple runs are recorded in the plot, this
   ;; tracks what run number we're on
   run-number
+  ;; timer when infection start
+  timerInf
   ;; counter used to keep the model running for a little
   ;; while after the last turtle gets infected
   delay
@@ -52,6 +54,7 @@ to setup-world
   set num-healthy num-androids
   set num-sick 0
   set delay 0
+  set timerInf 0
   create-some-androids
   create-user
   reset-ticks
@@ -59,6 +62,8 @@ end
 
 to infect
   ask one-of androids [ get-sick ]
+  if timerInf = 0
+  [reset-timer]
 end
 
 to create-some-androids
@@ -83,6 +88,9 @@ to go
   if delay > 50
     [ stop ]
   ;; now for the main stuff;
+  ;; incremente timer when infection start
+  if num-sick > 0
+  [ set timerInf timer]
   androids-wander
   ask turtles with [ infected? ]
     [ spread-disease ]
@@ -469,6 +477,17 @@ MONITOR
 237
 Number healthy
 num-healthy
+0
+1
+11
+
+MONITOR
+620
+242
+677
+287
+Time
+timerInf
 0
 1
 11
