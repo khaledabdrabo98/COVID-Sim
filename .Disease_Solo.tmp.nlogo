@@ -4,10 +4,16 @@
 
 globals
 [
-  ;; number of turtles that are healthy
-  num-healthy
-  ;; number of turtles that are sick
-  num-sick
+  ;; number of humans in the population
+  total_population
+  ;; number of humans that are healthy
+  num_healthy
+  ;; number of humans that are sick
+  num_infected
+  ;; number of humans that are dead
+  num_dead
+  ;; mask penetration rate (mask infection rate)
+  mask_penetration_rate
   ;; when multiple runs are recorded in the plot, this
   ;; tracks what run number we're on
   run-number
@@ -16,165 +22,252 @@ globals
   ;; counter used to keep the model running for a little
   ;; while after the last turtle gets infected
   delay
+  pop_infected_daily
 ]
 
-breed [ androids android ]
-breed [ users user ]
+breed [humans human]
+breed [dead deads]
 
-;; androids and users are both breeds of turtle, so both androids
-;; and users have these variables
-turtles-own
-[
-  infected?    ;; whether turtle is sick (true/false)
+humans-own [
+  infected?
+  contagious?
+  infected_previously?
+  wearmask?
+  infection-duration
+  symptom_delay_duration
+  isolate_symptomatic_individuals?
+  feel_symptoms?
+  isolation_tracker?
+  current_infection_hours
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Setup Functions ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
-;; clears the plot too
-to setup-clear
-  clear-all
-  set run-number 1
-  setup-world
-end
-
-;; note that the plot is not cleared so that data
-;; can be collected across runs
-to setup-keep
-  clear-turtles
-  clear-patches
-  set run-number run-number + 1
-  setup-world
-end
-
-to setup-world
-  set-default-shape androids "android"
-  set-default-shape users "person"
-  set num-healthy num-androids
-  set num-sick 0
-  set delay 0
-  set timerInf 0
-  create-some-androids
-  create-user
-  reset-ticks
-end
-
-to infect
-  ask one-of androids [ get-sick ]
-  reset-timer
-end
-
-to create-some-androids
-  create-androids num-androids
-  [
-    setxy random-pxcor random-pycor   ;; put androids on patch centers
-    set color gray
-    set heading 90 * random 4
+to setup-agents [#total-humans]
+  create-humans #total-humans [
     set infected? false
+    set contagious? false
+    set infected_previously? false
+    set wearmask? false
+    set isolate_symptomatic_individuals? false
+    set feel_symptoms? false
+    set isolation_tracker? false
+    setxy random-xcor random-ycor
   ]
+
+  ask humans [
+    set shape "person"
+    set size 2
+    set color green
+  ]
+
+end
+
+to setup-globals
+  ;; random-seed random_seed_number
+  set num_infected 0
+  set num_dead 0
+  set total_population num-population
+  set mask_penetration_rate (mask_penetration_particles / 100)
+  set pop_infected_daily []
+end
+
+to setup
+  clear-all
+  setup-globals
+  setup-agents total_population
+  set total_population (count humans + count dead)
+  let initial_infected_humans round (count humans * (initial_infected_proportion_population / 100)) ;true number of initial infected humans
+  infect_people initial_infected_humans ;start off by having some infected people
+
+  let initial_wear_mask round (count humans * (use_mask / 100))
+  wear_mask initial_wear_mask
+
+  reset-ticks
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Runtime Functions ;;
 ;;;;;;;;;;;;;;;;;;;;;;;
 
+to infect_people [#initial_infected_humans]
+  ask n-of #initial_infected_humans humans with [not infected_previously?] [get-infected]
+end
+
+to wear_mask [#initial_wear_mask]
+  ask n-of #initial_wear_mask humans [set wearmask? true]
+  ask humans with [wearmask?] [set shape "person_mask"]
+end
+
 to go
-  ;; in order to extend the plot for a little while
-  ;; after all the turtles are infected...
-  if num-sick = count turtles
-    [ set delay delay + 1  ]
-  if delay > 50
-    [ stop ]
-  ;; now for the main stuff;
-  ;; incremente timer when infection start
-  if num-sick > 0
-  [ set timerInf timer]
-  androids-wander
-  ask turtles with [ infected? ]
-    [ spread-disease ]
-  set num-sick count turtles with [ infected? ]
-  set num-healthy count turtles with [ not infected?]
-  tick
-end
+  ask humans [move-forward-randomly]
+  ask humans [infect]
+  ask humans [infection_aftermath]
 
-;; controls the motion of the androids
-to androids-wander
-  ask androids
-  [
-    ifelse avoid? and not infected?
-      [ avoid ] [
-    ifelse chase? and infected?
-      [ chase ]
-      [ rt (random 4) * 90 ] ]
+  set pop_infected_daily lput (100 * count humans with [infected?] / total_population) pop_infected_daily
+
+  if num_infected = ((count humans with [not infected? and infected_previously?]) + num_dead) [
+    stop
   ]
-  ask androids [
-    fd 1
+    tick
+end
+
+
+to move-forward-randomly
+  let lockdown_delay_hours lockdown_delay * 24
+
+  ifelse (not feel_symptoms?) [ ;people only move if no symptoms
+    ifelse Total_lockdown? [ ;if no symptoms and total lockdown, don't move, except for the ones disobeying and essential workers
+      ifelse coin-flip? [right random 45] [left random 45]
+    ]
+    [ ;if there is no total lockdown...
+        ifelse coin-flip? [right random 180] [left random 180]
+          forward random-float 0.2
+    ]
   ]
-end
-
-to avoid ;; android procedure
-  let candidates patches in-radius 1 with [ not any? turtles-here with [ infected? ] ]
-  ifelse any? candidates
-    [ face one-of candidates ]
-    [ rt (random 4) * 90 ]
-end
-
-to chase ;; android procedure
-  let candidates turtles in-radius 1 with [ not infected? ]
-  ifelse any? candidates
-    [ face one-of candidates ]
-    [ rt (random 4) * 90 ]
-end
-
-to spread-disease ;; turtle procedure
-  ask other turtles-here [ maybe-get-sick ]
-end
-
-to maybe-get-sick ;; turtle procedure
-  ;; roll the dice and maybe get sick
-  if (not infected?) and (random 100 < infection-chance)
-    [ get-sick ]
-end
-
-;; set the appropriate variables to make this turtle sick
-to get-sick ;; turtle procedure
-  if not infected?
-  [ set infected? true
-  set shape word shape " sick" ]
-end
-
-;;;;;;;;;;;;;;;;;;;;;
-;; User Procedures ;;
-;;;;;;;;;;;;;;;;;;;;;
-
-to create-user
-  create-users 1
-  [
-    set color sky
-    set size 1.5     ;; easier to see than default of 1
-    set heading (random 4) * 90
-    set infected? false
-  ]
-end
-
-to move [ new-heading ]
-  ask users
-  [
-    set heading new-heading
-    fd step-size
+  [ ;if they feel symptoms, stop moving, i.e. no command.
   ]
 end
 
 
-; Copyright 2005 Uri Wilensky.
-; See Info tab for full copyright and license.
+to infect
+  if (not infected_previously?) [ ;only applies to people not infected
+    let people_around humans-on neighbors ;let "people_around" be the neighbors
+    ifelse (not wearmask?) ;referring to the person ITSELF
+    [let infectious_around people_around with [(infected? = true and contagious? = true)] ;people are infectious if they are infected + contagious
+     let infectious_around_mask infectious_around with [wearmask?]
+     let infectious_around_nomask infectious_around with [not wearmask?]
+     let number_of_infectious_around count infectious_around
+     let number_of_infectious_around_nomask count infectious_around_nomask
+     let number_of_infectious_around_mask count infectious_around_mask
+
+     if number_of_infectious_around > 0 [ ;if there are infected no-mask people around
+       let within_infectious_distance (random(metres_per_patch) + 1) ;define infectious distance
+       set within_infectious_distance within_infectious_distance + random-float ( social_distancing_metres )
+       ifelse (not wearmask?) [ ;referring to neighbours without masks
+         if (infection-chance >= (random(100) + 1)) and within_infectious_distance <= maximum_infectious_distance [
+           get-infected
+         ]
+       ]
+       [
+         if (mask_penetration_rate * infection-chance >= (random(100) + 1)) and within_infectious_distance <= maximum_infectious_distance [  ;infected according to infection-chance + within distance
+           get-infected
+         ]
+       ]
+      ]
+    ]
+
+    [let infectious_around people_around with [(infected? = true and contagious? = true)]
+     let infectious_around_mask infectious_around with [wearmask?]
+     let infectious_around_nomask infectious_around with [not wearmask?]
+     let number_of_infectious_around count infectious_around
+     let number_of_infectious_around_nomask count infectious_around_nomask
+     let number_of_infectious_around_mask count infectious_around_mask
+     if number_of_infectious_around > 0 [ ;if there are infected people around
+       let within_infectious_distance (random(metres_per_patch) + 1) ;define infectious distance
+       set within_infectious_distance within_infectious_distance + random-float ( social_distancing_metres )
+       ifelse (not wearmask?) [
+          if ((mask_penetration_rate) * infection-chance >= (random(100) + 1)) and within_infectious_distance <= maximum_infectious_distance [   ;same principle as above but we multiply by penetration rate because victim is already wearing mask
+            get-infected
+          ]
+       ]
+       [
+          if ((mask_penetration_rate) * (mask_penetration_rate) * infection-chance >= (random(100) + 1)) and within_infectious_distance <= maximum_infectious_distance [   ;infected according to infection-chance + within distance
+            get-infected
+          ] ;we multiply by mask penetration rate twice because victim and infector is wearing mask; therefore two layers of masks
+       ]
+     ]
+    ]
+  ]
+end
+
+
+to get-infected
+  set infected_previously? true
+  set infected? true
+  set contagious? true
+  set color yellow
+  set infection-duration 24 * (random-normal infection_average_duration 2) ;avg hours of infection
+  set symptom_delay_duration 24 * (random-normal days_before_showing_symptoms 1) ;duration (converted to ticks or hours) before symptoms show
+  set current_infection_hours 0
+  set num_infected num_infected + 1
+end
+
+to recover
+  set infected? false
+  set feel_symptoms? false
+  set contagious? false
+  set infection-duration 0
+  set current_infection_hours 0
+  set color blue
+  set shape "person"
+  set size 2
+
+end
+
+
+to infection_aftermath
+  if infected? [
+    if (current_infection_hours >= symptom_delay_duration) [
+      set feel_symptoms? true
+
+      if feel_symptoms? [
+        set color 14
+        set shape "person"
+      ]
+
+      if feel_symptoms? [
+        ;Put slider bar here for isolation
+        if (symptomatic_isolation_rate >= (random(100) + 1)) and (not isolation_tracker?) [
+        set isolate_symptomatic_individuals? true
+        ]
+      set isolation_tracker? true ;isolation_tracker is just a variable to make sure this coin-flip is only applied once (and no more) to each symptomatic individual
+      ]
+
+    ]
+
+
+    ifelse (current_infection_hours >= infection-duration)
+    [
+
+      ifelse infected? [ ;if severe symptoms...
+        ifelse (50 >= (random (100) + 1)) [ ;...flip a coin, if dead....
+          set num_dead num_dead + 1
+          set breed dead
+          set shape "x"
+          set size 1
+          set color red
+        ]
+        [ ;if not dead...recover
+          set current_infection_hours 0
+          recover
+        ]
+      ]
+
+      [ ;if light symptoms, recover at end of period
+      set current_infection_hours 0
+      recover
+      ]
+    ]
+    [
+      set current_infection_hours current_infection_hours + 1
+    ]
+  ]
+
+end
+
+
+to-report coin-flip?
+  report random 2 = 0 ;reports outcome of 0 or 1, if 0 then its true
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
-245
-10
-568
-394
+262
+16
+1035
+790
 -1
 -1
 15.0
@@ -184,13 +277,13 @@ GRAPHICS-WINDOW
 1
 1
 0
-0
-0
 1
--10
-10
--12
-12
+1
+1
+-25
+25
+-25
+25
 1
 1
 1
@@ -198,28 +291,11 @@ ticks
 10.0
 
 BUTTON
-24
-46
-126
-79
-setup/clear
-setup-clear
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-24
-114
-126
-147
-NIL
+1053
+84
+1208
+117
+Begin simulation
 go
 T
 1
@@ -232,262 +308,463 @@ NIL
 0
 
 SLIDER
-21
-151
+22
 200
-184
+229
+233
 infection-chance
 infection-chance
 0
 100
-100.0
+89.0
 1
 1
 %
 HORIZONTAL
 
-PLOT
+SLIDER
+21
+40
+228
+73
+num-population
+num-population
+1
+1000
+250.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+1055
+125
+1209
+158
+Infect population
+infect_people round (count humans * (initial_infected_proportion_population / 100))\n
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+BUTTON
+1053
+44
+1208
+77
+Setup simulation
+setup
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+20
+80
+228
+113
+random_seed_number
+random_seed_number
+0
+100
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+120
+227
+153
+initial_infected_proportion_population
+initial_infected_proportion_population
+0
 10
-239
-240
-416
-Number Sick
-time
-sick
+5.0
+1
+1
+%
+HORIZONTAL
+
+TEXTBOX
+21
+181
+171
+199
+Virus parameters
+12
 0.0
-10.0
+1
+
+TEXTBOX
+25
+16
+175
+34
+Population parameters\n
+12
 0.0
-6.0
-true
-false
-"create-temporary-plot-pen word \"run \" run-number\nset-plot-pen-color item (run-number mod 5)\n                        [blue red green orange violet]" "plot num-sick"
-PENS
-"default" 1.0 0 -16777216 true "" ""
+1
+
+TEXTBOX
+1055
+22
+1205
+40
+Control center
+12
+0.0
+1
 
 SLIDER
 21
-10
-200
-43
-num-androids
-num-androids
+239
+230
+272
+infection_average_duration
+infection_average_duration
+0
+50
+21.0
 1
-300
-60.0
 1
-1
-NIL
+days
 HORIZONTAL
-
-MONITOR
-138
-191
-228
-236
-Number Sick
-num-sick
-0
-1
-11
-
-BUTTON
-614
-61
-683
-94
-up
-move 0
-NIL
-1
-T
-OBSERVER
-NIL
-I
-NIL
-NIL
-0
-
-BUTTON
-654
-94
-717
-127
-right
-move 90
-NIL
-1
-T
-OBSERVER
-NIL
-L
-NIL
-NIL
-0
-
-BUTTON
-584
-94
-646
-127
-left
-move 270
-NIL
-1
-T
-OBSERVER
-NIL
-J
-NIL
-NIL
-0
-
-BUTTON
-615
-126
-684
-159
-down
-move 180
-NIL
-1
-T
-OBSERVER
-NIL
-K
-NIL
-NIL
-0
-
-SWITCH
-595
-337
-698
-370
-avoid?
-avoid?
-1
-1
--1000
-
-SWITCH
-595
-373
-698
-406
-chase?
-chase?
-0
-1
--1000
-
-TEXTBOX
-583
-34
-733
-52
-person:
-11
-0.0
-0
-
-TEXTBOX
-591
-313
-741
-331
-androids:
-11
-0.0
-0
-
-BUTTON
-24
-80
-126
-113
-setup/keep
-setup-keep
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-TEXTBOX
-138
-92
-235
-110
-keeps old plots
-11
-0.0
-0
-
-TEXTBOX
-138
-57
-235
-75
-clears old plots\n
-11
-0.0
-0
 
 SLIDER
-577
-164
-726
-197
-step-size
-step-size
-1
+20
+278
+231
+311
+maximum_infectious_distance
+maximum_infectious_distance
+0
 5
-1.0
+2.0
+0.5
+1
+metres
+HORIZONTAL
+
+SLIDER
+19
+316
+232
+349
+days_before_showing_symptoms
+days_before_showing_symptoms
+0
+21
+6.0
+1
+1
+days
+HORIZONTAL
+
+TEXTBOX
+24
+370
+174
+388
+Masks impact\n
+12
+0.0
+1
+
+SLIDER
+23
+390
+230
+423
+use_mask
+use_mask
+0
+100
+45.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+23
+429
+231
+462
+mask_penetration_particles
+mask_penetration_particles
+0
+100
+50.0
+1
+1
+%
+HORIZONTAL
+
+TEXTBOX
+21
+479
+171
+497
+Confinement
+12
+0.0
+1
+
+SLIDER
+21
+539
+227
+572
+lockdown_delay
+lockdown_delay
+0
+100
+0.0
+1
+1
+days
+HORIZONTAL
+
+SWITCH
+22
+501
+228
+534
+total_lockdown?
+total_lockdown?
+1
+1
+-1000
+
+SLIDER
+17
+610
+228
+643
+social_distancing_metres
+social_distancing_metres
+0
+4
+0.0
+0.5
+1
+metres
+HORIZONTAL
+
+TEXTBOX
+23
+589
+226
+619
+Effect of social distancing
+12
+0.0
+1
+
+PLOT
+1053
+580
+1755
+790
+Infectivity
+Time (hours)
+% of population
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Infected" 1.0 0 -1604481 true "" "plot 100 * count humans with [infected?] / total_population"
+"Infected no symproms" 1.0 0 -1184463 true "" "plot 100 * count humans with [infected? and not feel_symptoms?] / total_population"
+"Infected with symptoms" 1.0 0 -5298144 true "" "plot 100 * count humans with [infected? and feel_symptoms?] / total_population"
+"Symptomatic" 1.0 0 -11085214 true "" "plot 100 * count humans with [not infected? and feel_symptoms?] / total_population"
+"Dead" 1.0 0 -16777216 true "" "plot 100 * num_dead / total_population"
+
+PLOT
+1053
+368
+1541
+571
+SIRD model
+Time (hours)
+% population
+0.0
+10.0
+0.0
+100.0
+true
+true
+"" ""
+PENS
+"Susceptible" 1.0 0 -13840069 true "" "plot 100 * (count humans with [not infected? and not infected_previously?]) / total_population"
+"Infected" 1.0 0 -2674135 true "" "plot 100 * (count humans with [color = yellow] + count humans with [color = orange]) / total_population"
+"Recovered" 1.0 0 -13345367 true "" "plot 100 * (count humans with [color = blue]) / total_population"
+"Dead" 1.0 0 -16777216 true "" "plot 100 * (cumulative_death) / total_population"
+
+MONITOR
+1054
+196
+1190
+241
+% currently infected
+precision (100 * count humans with [infected?] / (count humans)) 0
+17
+1
+11
+
+TEXTBOX
+1055
+175
+1205
+193
+Stats
+12
+0.0
+1
+
+MONITOR
+1054
+250
+1190
+295
+% cumulative infected
+100 * (num_infected / total_population)
+17
+1
+11
+
+MONITOR
+1055
+308
+1192
+353
+% asymptomatic
+precision (100 * count humans with [infected? and not feel_symptoms?] / (count humans with [infected?])) 0
+17
+1
+11
+
+MONITOR
+1345
+253
+1592
+298
+Days elapsed since simulation started
+precision (ticks / 24) 1
+17
+1
+11
+
+TEXTBOX
+24
+659
+174
+677
+Environment scaling\n
+12
+0.0
+1
+
+SLIDER
+18
+679
+230
+712
+metres_per_patch
+metres_per_patch
+0
+40
+0.0
 1
 1
 NIL
 HORIZONTAL
 
-BUTTON
-127
-114
-229
-147
-NIL
-infect
-NIL
+TEXTBOX
+22
+736
+172
+754
+Effect of isolation
+12
+0.0
 1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
+
+SLIDER
+20
+754
+227
+787
+symptomatic_isolation_rate
+symptomatic_isolation_rate
 0
+100
+30.0
+1
+1
+%
+HORIZONTAL
 
 MONITOR
-27
-192
-128
-237
-Number healthy
-num-healthy
-0
+1214
+254
+1327
+299
+Total death
+num_dead
+17
 1
 11
 
 MONITOR
-620
+1213
+197
+1326
 242
-677
-287
-Time
-timerInf
-0
+Total population
+num-population
+17
+1
+11
+
+MONITOR
+1214
+307
+1327
+352
+Total infected
+num_infected
+17
+1
+11
+
+MONITOR
+1345
+198
+1461
+243
+Total recovered
+count humans with [not infected? and infected_previously?]
+17
 1
 11
 
@@ -1099,6 +1376,21 @@ Rectangle -7500403 true true 127 79 172 94
 Polygon -7500403 true true 195 90 240 150 225 180 165 105
 Polygon -7500403 true true 105 90 60 150 75 180 135 105
 Circle -2674135 true false 178 163 95
+
+person_mask
+false
+0
+Circle -7500403 true true 110 5 80
+Polygon -7500403 true true 105 90 120 195 90 285 105 300 135 300 150 225 165 300 195 300 210 285 180 195 195 90
+Rectangle -7500403 true true 127 79 172 94
+Polygon -7500403 true true 195 90 240 150 225 180 165 105
+Polygon -7500403 true true 105 90 60 150 75 180 135 105
+Polygon -13345367 true false 105 45 120 75 180 75 195 45 105 45 120 75
+Line -1 false 120 75 180 75
+Line -1 false 105 45 195 45
+Line -1 false 120 75 105 45
+Line -1 false 180 75 195 45
+Line -1 false 135 60 165 60
 
 plant
 false
