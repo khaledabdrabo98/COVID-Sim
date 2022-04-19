@@ -228,12 +228,11 @@ to infection_aftermath
 
     ]
 
-
     ifelse (current_infection_hours >= infection-duration)
     [
 
       ifelse infected? [ ;if severe symptoms...
-        ifelse (50 >= (random (100) + 1)) [ ;...flip a coin, if dead....
+        ifelse (fatality_rate >= (random (100) + 1)) [ ;...flip a coin, if dead....
           set num_dead num_dead + 1
           set breed dead
           set shape "x"
@@ -510,7 +509,7 @@ mask_penetration_particles
 mask_penetration_particles
 0
 100
-50.0
+39.0
 1
 1
 %
@@ -618,7 +617,7 @@ PENS
 "Susceptible" 1.0 0 -13840069 true "" "plot 100 * (count humans with [not infected? and not infected_previously?]) / total_population"
 "Infected" 1.0 0 -2674135 true "" "plot 100 * (count humans with [color = yellow] + count humans with [color = orange]) / total_population"
 "Recovered" 1.0 0 -13345367 true "" "plot 100 * (count humans with [color = blue]) / total_population"
-"Dead" 1.0 0 -16777216 true "" "plot 100 * (cumulative_death) / total_population"
+"Dead" 1.0 0 -16777216 true "" "plot 100 * (num_dead) / total_population"
 
 MONITOR
 1054
@@ -664,10 +663,10 @@ precision (100 * count humans with [infected? and not feel_symptoms?] / (count h
 11
 
 MONITOR
-1345
-253
-1592
-298
+1353
+131
+1600
+176
 Days elapsed since simulation started
 precision (ticks / 24) 1
 17
@@ -701,9 +700,9 @@ HORIZONTAL
 
 TEXTBOX
 22
-736
+727
 172
-754
+745
 Effect of isolation
 12
 0.0
@@ -711,24 +710,24 @@ Effect of isolation
 
 SLIDER
 20
-754
+745
 227
-787
+778
 symptomatic_isolation_rate
 symptomatic_isolation_rate
 0
 100
-30.0
+28.0
 1
 1
 %
 HORIZONTAL
 
 MONITOR
-1214
-254
-1327
-299
+1212
+252
+1325
+297
 Total death
 num_dead
 17
@@ -747,10 +746,10 @@ num-population
 11
 
 MONITOR
-1214
-307
-1327
-352
+1212
+305
+1325
+350
 Total infected
 num_infected
 17
@@ -764,6 +763,42 @@ MONITOR
 243
 Total recovered
 count humans with [not infected? and infected_previously?]
+17
+1
+11
+
+TEXTBOX
+22
+796
+172
+814
+Fatality rate
+12
+0.0
+1
+
+SLIDER
+21
+818
+230
+851
+fatality_rate
+fatality_rate
+0
+100
+30.0
+1
+1
+%
+HORIZONTAL
+
+MONITOR
+1345
+307
+1477
+352
+Total survivers
+count humans with [not infected? and not infected_previously?]
 17
 1
 11
