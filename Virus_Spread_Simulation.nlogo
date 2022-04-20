@@ -308,14 +308,14 @@ NIL
 
 SLIDER
 22
-200
+165
 229
-233
+198
 infection-chance
 infection-chance
 0
 100
-89.0
+19.0
 1
 1
 %
@@ -379,7 +379,7 @@ initial_population_infected
 initial_population_infected
 0
 10
-5.0
+2.0
 1
 1
 %
@@ -387,9 +387,9 @@ HORIZONTAL
 
 TEXTBOX
 21
-181
+146
 171
-199
+164
 Virus parameters
 12
 0.0
@@ -417,9 +417,9 @@ Control center
 
 SLIDER
 21
-239
+204
 230
-272
+237
 infection_average_duration
 infection_average_duration
 0
@@ -432,9 +432,9 @@ HORIZONTAL
 
 SLIDER
 20
-278
+243
 231
-311
+276
 maximum_infectious_distance
 maximum_infectious_distance
 0
@@ -447,9 +447,9 @@ HORIZONTAL
 
 SLIDER
 19
-316
+281
 232
-349
+314
 days_before_symptoms
 days_before_symptoms
 0
@@ -462,9 +462,9 @@ HORIZONTAL
 
 TEXTBOX
 24
-370
+335
 174
-388
+353
 Masks impact\n
 12
 0.0
@@ -472,9 +472,9 @@ Masks impact\n
 
 SLIDER
 23
-390
+355
 230
-423
+388
 use_mask
 use_mask
 0
@@ -487,9 +487,9 @@ HORIZONTAL
 
 SLIDER
 23
-429
+394
 231
-462
+427
 mask_penetration_particles
 mask_penetration_particles
 0
@@ -502,9 +502,9 @@ HORIZONTAL
 
 TEXTBOX
 21
-479
+444
 171
-497
+462
 Confinement
 12
 0.0
@@ -512,9 +512,9 @@ Confinement
 
 SLIDER
 21
-539
+504
 227
-572
+537
 lockdown_delay
 lockdown_delay
 0
@@ -527,9 +527,9 @@ HORIZONTAL
 
 SWITCH
 22
-501
+466
 228
-534
+499
 total_lockdown?
 total_lockdown?
 1
@@ -538,9 +538,9 @@ total_lockdown?
 
 SLIDER
 17
-610
+575
 228
-643
+608
 social_distancing
 social_distancing
 0
@@ -553,9 +553,9 @@ HORIZONTAL
 
 TEXTBOX
 23
-589
+554
 226
-619
+584
 Effect of social distancing
 12
 0.0
@@ -605,9 +605,9 @@ PENS
 
 MONITOR
 1054
-196
-1190
-241
+194
+1185
+239
 % currently infected
 precision (100 * count humans with [infected?] / (count humans)) 0
 17
@@ -616,9 +616,9 @@ precision (100 * count humans with [infected?] / (count humans)) 0
 
 TEXTBOX
 1055
-175
+173
 1205
-193
+191
 Stats
 12
 0.0
@@ -627,7 +627,7 @@ Stats
 MONITOR
 1053
 254
-1190
+1186
 299
 % asymptomatic
 precision (100 * count humans with [infected? and not feel_symptoms?] / (count humans with [infected?])) 0
@@ -636,10 +636,10 @@ precision (100 * count humans with [infected? and not feel_symptoms?] / (count h
 11
 
 MONITOR
-1353
-131
-1600
-176
+1055
+310
+1322
+355
 Days elapsed since simulation started
 precision (ticks / 24) 1
 17
@@ -648,9 +648,9 @@ precision (ticks / 24) 1
 
 TEXTBOX
 24
-659
+624
 174
-677
+642
 Environment scaling\n
 12
 0.0
@@ -658,9 +658,9 @@ Environment scaling\n
 
 SLIDER
 18
-679
+644
 230
-712
+677
 metres_per_patch
 metres_per_patch
 0
@@ -673,9 +673,9 @@ HORIZONTAL
 
 TEXTBOX
 22
-727
+692
 172
-745
+710
 Effect of isolation
 12
 0.0
@@ -683,9 +683,9 @@ Effect of isolation
 
 SLIDER
 20
-745
+710
 227
-778
+743
 symptomatic_isolation_rate
 symptomatic_isolation_rate
 0
@@ -697,10 +697,10 @@ symptomatic_isolation_rate
 HORIZONTAL
 
 MONITOR
-1213
-308
-1326
-353
+1337
+309
+1450
+354
 Total death
 num_dead
 17
@@ -708,10 +708,10 @@ num_dead
 11
 
 MONITOR
-1213
-197
-1326
-242
+1205
+199
+1318
+244
 Total population
 population
 17
@@ -719,10 +719,10 @@ population
 11
 
 MONITOR
-1211
-249
-1324
-294
+1203
+253
+1316
+298
 Total infected
 num_infected
 17
@@ -730,9 +730,9 @@ num_infected
 11
 
 MONITOR
-1345
+1337
 198
-1461
+1447
 243
 Total recovered
 count humans with [not infected? and infected_previously?]
@@ -742,9 +742,9 @@ count humans with [not infected? and infected_previously?]
 
 TEXTBOX
 22
-796
+761
 172
-814
+779
 Fatality rate
 12
 0.0
@@ -752,9 +752,9 @@ Fatality rate
 
 SLIDER
 21
-818
+783
 230
-851
+816
 fatality_rate
 fatality_rate
 0
@@ -766,10 +766,10 @@ fatality_rate
 HORIZONTAL
 
 MONITOR
-1344
-249
-1476
-294
+1336
+252
+1449
+297
 Total survivers
 count humans with [not infected? and not infected_previously?]
 17
