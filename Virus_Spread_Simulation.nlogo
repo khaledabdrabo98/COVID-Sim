@@ -69,7 +69,7 @@ to setup-globals
   ;; random-seed random_seed_number
   set num_infected 0
   set num_dead 0
-  set total_population num-population
+  set total_population population
   set mask_penetration_rate (mask_penetration_particles / 100)
   set pop_infected_daily []
 end
@@ -79,7 +79,7 @@ to setup
   setup-globals
   setup-agents total_population
   set total_population (count humans + count dead)
-  let initial_infected_humans round (count humans * (initial_infected_proportion_population / 100)) ;true number of initial infected humans
+  let initial_infected_humans round (count humans * (initial_population_infected / 100)) ;true number of initial infected humans
   infect_people initial_infected_humans ;start off by having some infected people
 
   let initial_wear_mask round (count humans * (use_mask / 100))
@@ -145,7 +145,7 @@ to infect
 
      if number_of_infectious_around > 0 [ ;if there are infected no-mask people around
        let within_infectious_distance (random(metres_per_patch) + 1) ;define infectious distance
-       set within_infectious_distance within_infectious_distance + random-float ( social_distancing_metres )
+       set within_infectious_distance within_infectious_distance + random-float ( social_distancing )
        ifelse (not wearmask?) [ ;referring to neighbours without masks
          if (infection-chance >= (random(100) + 1)) and within_infectious_distance <= maximum_infectious_distance [
            get-infected
@@ -167,7 +167,7 @@ to infect
      let number_of_infectious_around_mask count infectious_around_mask
      if number_of_infectious_around > 0 [ ;if there are infected people around
        let within_infectious_distance (random(metres_per_patch) + 1) ;define infectious distance
-       set within_infectious_distance within_infectious_distance + random-float ( social_distancing_metres )
+       set within_infectious_distance within_infectious_distance + random-float ( social_distancing )
        ifelse (not wearmask?) [
           if ((mask_penetration_rate) * infection-chance >= (random(100) + 1)) and within_infectious_distance <= maximum_infectious_distance [   ;same principle as above but we multiply by penetration rate because victim is already wearing mask
             get-infected
@@ -190,7 +190,7 @@ to get-infected
   set contagious? true
   set color yellow
   set infection-duration 24 * (random-normal infection_average_duration 2) ;avg hours of infection
-  set symptom_delay_duration 24 * (random-normal days_before_showing_symptoms 1) ;duration (converted to ticks or hours) before symptoms show
+  set symptom_delay_duration 24 * (random-normal days_before_symptoms 1) ;duration (converted to ticks or hours) before symptoms show
   set current_infection_hours 0
   set num_infected num_infected + 1
 end
@@ -326,11 +326,11 @@ SLIDER
 40
 228
 73
-num-population
-num-population
+population
+population
 1
 1000
-250.0
+500.0
 1
 1
 NIL
@@ -342,7 +342,7 @@ BUTTON
 1209
 158
 Infect population
-infect_people round (count humans * (initial_infected_proportion_population / 100))\n
+infect_people round (count humans * (initial_population_infected / 100))\n
 NIL
 1
 T
@@ -372,26 +372,11 @@ NIL
 
 SLIDER
 20
-80
-228
-113
-random_seed_number
-random_seed_number
-0
-100
-2.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-20
-120
+89
 227
-153
-initial_infected_proportion_population
-initial_infected_proportion_population
+122
+initial_population_infected
+initial_population_infected
 0
 10
 5.0
@@ -465,8 +450,8 @@ SLIDER
 316
 232
 349
-days_before_showing_symptoms
-days_before_showing_symptoms
+days_before_symptoms
+days_before_symptoms
 0
 21
 6.0
@@ -556,8 +541,8 @@ SLIDER
 610
 228
 643
-social_distancing_metres
-social_distancing_metres
+social_distancing
+social_distancing
 0
 4
 0.0
@@ -595,7 +580,6 @@ PENS
 "Infected" 1.0 0 -1604481 true "" "plot 100 * count humans with [infected?] / total_population"
 "Infected no symproms" 1.0 0 -1184463 true "" "plot 100 * count humans with [infected? and not feel_symptoms?] / total_population"
 "Infected with symptoms" 1.0 0 -5298144 true "" "plot 100 * count humans with [infected? and feel_symptoms?] / total_population"
-"Symptomatic" 1.0 0 -11085214 true "" "plot 100 * count humans with [not infected? and feel_symptoms?] / total_population"
 "Dead" 1.0 0 -16777216 true "" "plot 100 * num_dead / total_population"
 
 PLOT
@@ -641,21 +625,10 @@ Stats
 1
 
 MONITOR
-1054
-250
+1053
+254
 1190
-295
-% cumulative infected
-100 * (num_infected / total_population)
-17
-1
-11
-
-MONITOR
-1055
-308
-1192
-353
+299
 % asymptomatic
 precision (100 * count humans with [infected? and not feel_symptoms?] / (count humans with [infected?])) 0
 17
@@ -724,10 +697,10 @@ symptomatic_isolation_rate
 HORIZONTAL
 
 MONITOR
-1212
-252
-1325
-297
+1213
+308
+1326
+353
 Total death
 num_dead
 17
@@ -740,16 +713,16 @@ MONITOR
 1326
 242
 Total population
-num-population
+population
 17
 1
 11
 
 MONITOR
-1212
-305
-1325
-350
+1211
+249
+1324
+294
 Total infected
 num_infected
 17
@@ -793,10 +766,10 @@ fatality_rate
 HORIZONTAL
 
 MONITOR
-1345
-307
-1477
-352
+1344
+249
+1476
+294
 Total survivers
 count humans with [not infected? and not infected_previously?]
 17
